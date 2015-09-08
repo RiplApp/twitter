@@ -54,8 +54,6 @@ module Twitter
  
       def set_multipart_options!(request_method, options)
         if request_method == :multipart_post
-          key = options.delete(:key)
-          file = options.delete(:file)
           merge_multipart_file!(options)  
           @request_method = :post
           @headers = Twitter::Headers.new(@client, @request_method, @uri).request_headers
