@@ -30,11 +30,13 @@ module Twitter
       # @option options [Integer] :end_sleep_time The hour that sleep time should end if it is enabled. The value for this parameter should be provided in {http://en.wikipedia.org/wiki/ISO_8601 ISO8601} format (i.e. 00-23). The time is considered to be in the same timezone as the user's time_zone setting.
       # @option options [String] :time_zone The timezone dates and times should be displayed in for the user. The timezone must be one of the {http://api.rubyonrails.org/classes/ActiveSupport/TimeZone.html Rails TimeZone} names.
       # @option options [String] :lang The language which Twitter should render in for this user. The language must be specified by the appropriate two letter ISO 639-1 representation. Currently supported languages are provided by {https://dev.twitter.com/rest/reference/get/help/languages GET help/languages}.
+      # @option options [String] :allow_contributor_request Whether to allow others to include user as contributor. Possible values include 'all' (anyone can include user), 'following' (only followers can include user) or 'none'. Also note that changes to this field require the request also include a current_password value with the user's password to successfully modify this field.
+      # @option options [String] :current_password The user's password. This is only required when modifying the allow_contributor_request field.
       def settings(options = {})
         request_method = options.size.zero? ? :get : :post
         response = perform_request(request_method.to_sym, '/1.1/account/settings.json', options)
         # https://dev.twitter.com/issues/59
-        response.update(trend_location: response.fetch(:trend_location, []).first)
+        response[:trend_location] = response.fetch(:trend_location, []).first
         Twitter::Settings.new(response)
       end
 
@@ -206,7 +208,7 @@ module Twitter
       def users(*args)
         arguments = Twitter::Arguments.new(args)
         flat_pmap(arguments.each_slice(MAX_USERS_PER_REQUEST)) do |users|
-          perform_post_with_objects('/1.1/users/lookup.json', merge_users(arguments.options, users), Twitter::User)
+          perform_get_with_objects('/1.1/users/lookup.json', merge_users(arguments.options, users), Twitter::User)
         end
       end
 
@@ -244,6 +246,7 @@ module Twitter
       # @return [Boolean] true if the user exists, otherwise false.
       # @param user [Integer, String, Twitter::User] A Twitter user ID, screen name, URI, or object.
       def user?(user, options = {})
+        options = options.dup
         merge_user!(options, user)
         perform_get('/1.1/users/show.json', options)
         true
@@ -263,6 +266,7 @@ module Twitter
       # @option options [Integer] :count The number of people to retrieve. Maxiumum of 20 allowed per page.
       # @option options [Integer] :page Specifies the page of results to retrieve.
       def user_search(query, options = {})
+        options = options.dup
         perform_get_with_objects('/1.1/users/search.json', options.merge(q: query), Twitter::User)
       end
 
