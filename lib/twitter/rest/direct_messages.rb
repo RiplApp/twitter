@@ -23,7 +23,6 @@ module Twitter
       # @option options [Integer] :max_id Returns results with an ID less than (that is, older than) or equal to the specified ID.
       # @option options [Integer] :count Specifies the number of records to retrieve. Must be less than or equal to 200.
       # @option options [Integer] :page Specifies the page of results to retrieve.
-      # @option options [Boolean] :full_text Returns the full text of a DM when message text is longer than 140 characters.
       def direct_messages_received(options = {})
         perform_get_with_objects('/1.1/direct_messages.json', options, Twitter::DirectMessage)
       end
@@ -41,7 +40,6 @@ module Twitter
       # @option options [Integer] :max_id Returns results with an ID less than (that is, older than) or equal to the specified ID.
       # @option options [Integer] :count Specifies the number of records to retrieve. Must be less than or equal to 200.
       # @option options [Integer] :page Specifies the page of results to retrieve.
-      # @option options [Boolean] :full_text Returns the full text of a DM when message text is longer than 140 characters.
       def direct_messages_sent(options = {})
         perform_get_with_objects('/1.1/direct_messages/sent.json', options, Twitter::DirectMessage)
       end
@@ -56,8 +54,8 @@ module Twitter
       # @return [Twitter::DirectMessage] The requested messages.
       # @param id [Integer] A direct message ID.
       # @param options [Hash] A customizable set of options.
-      # @option options [Boolean] :full_text Returns the full text of a DM when message text is longer than 140 characters.
       def direct_message(id, options = {})
+        options = options.dup
         options[:id] = id
         perform_get_with_object('/1.1/direct_messages/show.json', options, Twitter::DirectMessage)
       end
@@ -126,13 +124,14 @@ module Twitter
       # @param text [String] The text of your direct message, up to 10,000 characters.
       # @param options [Hash] A customizable set of options.
       def create_direct_message(user, text, options = {})
+        options = options.dup
         merge_user!(options, user)
         options[:text] = text
         perform_post_with_object('/1.1/direct_messages/new.json', options, Twitter::DirectMessage)
       end
-      alias_method :d, :create_direct_message
-      alias_method :m, :create_direct_message
-      alias_method :dm, :create_direct_message
+      alias d create_direct_message
+      alias m create_direct_message
+      alias dm create_direct_message
     end
   end
 end

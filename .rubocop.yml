@@ -1,3 +1,17 @@
+Layout/AccessModifierIndentation:
+  EnforcedStyle: outdent
+
+Layout/SpaceInsideHashLiteralBraces:
+  EnforcedStyle: no_space
+
+Lint/Void:
+  Enabled: false
+
+Metrics/BlockLength:
+  Max: 36
+  Exclude:
+    - spec/**/*.rb
+
 Metrics/BlockNesting:
   Max: 2
 
@@ -16,9 +30,6 @@ Metrics/ParameterLists:
   Max: 4
   CountKeywordArgs: true
 
-Style/AccessModifierIndentation:
-  EnforcedStyle: outdent
-
 Style/CollectionMethods:
   Enabled: true
   PreferredMethods:
@@ -34,8 +45,11 @@ Style/Documentation:
 Style/DoubleNegation:
   Enabled: false
 
-Style/SpaceInsideHashLiteralBraces:
-  EnforcedStyle: no_space
+Style/FrozenStringLiteralComment:
+  Enabled: false
 
-Style/TrailingComma:
+Style/NumericPredicate:
+  Enabled: false
+
+Style/TrailingCommaInLiteral:
   EnforcedStyleForMultiline: 'comma'

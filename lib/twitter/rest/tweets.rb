@@ -41,6 +41,7 @@ module Twitter
       # @option options [Boolean, String, Integer] :trim_user Each tweet returned in a timeline will include a user object with only the author's numerical ID when set to true, 't' or 1.
       # @option options [Boolean] :ids_only ('false') Only return user IDs instead of full user objects.
       def retweeters_of(tweet, options = {})
+        options = options.dup
         ids_only = !!options.delete(:ids_only)
         retweeters = retweets(tweet, options).collect(&:user)
         ids_only ? retweeters.collect(&:id) : retweeters
@@ -52,7 +53,7 @@ module Twitter
       # @rate_limited Yes
       # @authentication Requires user context
       # @raise [Twitter::Error::Unauthorized] Error raised when supplied user credentials are not valid.
-      # @raise [Twitter::Error::Forbidden] Error raised when supplied status is over 140 characters.
+      # @raise [Twitter::Error::Forbidden] Error raised when supplied status is over 280 characters.
       # @return [Twitter::Tweet] The requested Tweet.
       # @param tweet [Integer, String, URI, Twitter::Tweet] A Tweet ID, URI, or object.
       # @param options [Hash] A customizable set of options.
@@ -100,7 +101,7 @@ module Twitter
           perform_post_with_object("/1.1/statuses/destroy/#{extract_id(tweet)}.json", arguments.options, Twitter::Tweet)
         end
       end
-      alias_method :destroy_tweet, :destroy_status
+      alias destroy_tweet destroy_status
 
       # Updates the authenticating user's status
       #
@@ -110,7 +111,7 @@ module Twitter
       # @authentication Requires user context
       # @raise [Twitter::Error::Unauthorized] Error raised when supplied user credentials are not valid.
       # @return [Twitter::Tweet] The created Tweet. When the tweet is deemed a duplicate by Twitter, returns the last Tweet from the user's timeline.
-      # @param status [String] The text of your status update, up to 140 characters.
+      # @param status [String] The text of your status update, up to 280 characters.
       # @param options [Hash] A customizable set of options.
       # @option options [Boolean, String, Integer] :possibly_sensitive Set to true for content which may not be suitable for every audience.
       # @option options [Twitter::Tweet] :in_reply_to_status An existing status that the update is in reply to. If the status being replied to was not originally posted by the authenticated user, the text of the status must begin with an @-mention, or twitter will reject the update.
@@ -136,7 +137,7 @@ module Twitter
       # @raise [Twitter::Error::Unauthorized] Error raised when supplied user credentials are not valid.
       # @raise [Twitter::Error::DuplicateStatus] Error raised when a duplicate status is posted.
       # @return [Twitter::Tweet] The created Tweet.
-      # @param status [String] The text of your status update, up to 140 characters.
+      # @param status [String] The text of your status update, up to 280 characters.
       # @param options [Hash] A customizable set of options.
       # @option options [Boolean, String, Integer] :possibly_sensitive Set to true for content which may not be suitable for every audience.
       # @option options [Twitter::Tweet] :in_reply_to_status An existing status that the update is in reply to. If the status being replied to was not originally posted by the authenticated user, the text of the status must begin with an @-mention, or twitter will reject the update.
@@ -208,7 +209,7 @@ module Twitter
       # @authentication Requires user context
       # @raise [Twitter::Error::Unauthorized] Error raised when supplied user credentials are not valid.
       # @return [Twitter::Tweet] The created Tweet.
-      # @param status [String] The text of your status update, up to 140 characters.
+      # @param status [String] The text of your status update, up to 280 characters.
       # @param media [File, Array<File>] An image file or array of image files (PNG, JPEG or GIF).
       # @param options [Hash] A customizable set of options.
       # @option options [Boolean, String, Integer] :possibly_sensitive Set to true for content which may not be suitable for every audience.
@@ -221,6 +222,7 @@ module Twitter
       # @option options [String] :display_coordinates Whether or not to put a pin on the exact coordinates a tweet has been sent from.
       # @option options [Boolean, String, Integer] :trim_user Each tweet returned in a timeline will include a user object with only the author's numerical ID when set to true, 't' or 1.
       def update_with_media(status, media, options = {})
+        options = options.dup
         media_ids = pmap(array_wrap(media)) do |medium|
           upload(medium)[:media_id]
         end
@@ -246,6 +248,7 @@ module Twitter
       # @option options [String] :widget_type Set to video to return a Twitter Video embed for the given Tweet.
       # @option options [Boolean, String] :hide_tweet Applies to video type only. Set to 1 or true to link directly to the Tweet URL instead of displaying a Tweet overlay when a viewer clicks on the Twitter bird logo.
       def oembed(tweet, options = {})
+        options = options.dup
         options[:id] = extract_id(tweet)
         perform_get_with_object('/1.1/statuses/oembed.json', options, Twitter::OEmbed)
       end
@@ -294,6 +297,30 @@ module Twitter
         perform_get_with_cursor('/1.1/statuses/retweeters/ids.json', arguments.options, :ids)
       end
 
+      # Untweets a retweeted status as the authenticating user
+      #
+      # @see https://dev.twitter.com/rest/reference/post/statuses/unretweet/:id
+      # @rate_limited Yes
+      # @authentication Requires user context
+      # @raise [Twitter::Error::Unauthorized] Error raised when supplied user credentials are not valid.
+      # @return [Array<Twitter::Tweet>] The original tweets with retweet details embedded.
+      # @overload unretweet(*tweets)
+      #   @param tweets [Enumerable<Integer, String, URI, Twitter::Tweet>] A collection of Tweet IDs, URIs, or objects.
+      # @overload unretweet(*tweets, options)
+      #   @param tweets [Enumerable<Integer, String, URI, Twitter::Tweet>] A collection of Tweet IDs, URIs, or objects.
+      #   @param options [Hash] A customizable set of options.
+      #   @option options [Boolean, String, Integer] :trim_user Each tweet returned in a timeline will include a user object with only the author's numerical ID when set to true, 't' or 1.
+      def unretweet(*args)
+        arguments = Twitter::Arguments.new(args)
+        pmap(arguments) do |tweet|
+          begin
+            post_unretweet(extract_id(tweet), arguments.options)
+          rescue Twitter::Error::NotFound
+            next
+          end
+        end.compact
+      end
+
     private
 
       # Uploads images and videos. Videos require multiple requests and uploads in chunks of 5 Megabytes.
@@ -301,7 +328,7 @@ module Twitter
       #
       # @see https://dev.twitter.com/rest/public/uploading-media
       def upload(media) # rubocop:disable MethodLength, AbcSize
-        if !(File.basename(media) =~ /\.mp4$/)
+        if File.basename(media) !~ /\.mp4$/
           Twitter::REST::Request.new(self, :multipart_post, 'https://upload.twitter.com/1.1/media/upload.json', key: :media, file: media).perform
         else
           init = Twitter::REST::Request.new(self, :post, 'https://upload.twitter.com/1.1/media/upload.json',
@@ -326,6 +353,7 @@ module Twitter
                                      command: 'FINALIZE', media_id: init[:media_id]).perform
         end
       end
+
       def array_wrap(object)
         if object.respond_to?(:to_ary)
           object.to_ary || [object]
@@ -336,6 +364,11 @@ module Twitter
 
       def post_retweet(tweet, options)
         response = perform_post("/1.1/statuses/retweet/#{extract_id(tweet)}.json", options)
+        Twitter::Tweet.new(response)
+      end
+
+      def post_unretweet(tweet, options)
+        response = perform_post("/1.1/statuses/unretweet/#{extract_id(tweet)}.json", options)
         Twitter::Tweet.new(response)
       end
     end

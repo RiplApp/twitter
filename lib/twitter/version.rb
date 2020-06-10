@@ -4,12 +4,12 @@ module Twitter
 
     # @return [Integer]
     def major
-      5
+      6
     end
 
     # @return [Integer]
     def minor
-      15
+      2
     end
 
     # @return [Integer]
@@ -34,7 +34,7 @@ module Twitter
 
     # @return [Array]
     def to_a
-      to_h.values.compact
+      [major, minor, patch, pre].compact
     end
 
     # @return [String]
